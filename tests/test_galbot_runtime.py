@@ -20,8 +20,16 @@ from robolab.robots.galbot_golf import (
     GALBOT_GOLF_ROOT_Z_ABOVE_GROUND,
     GALBOT_GOLF_TABLETOP_ROOT_POS,
     GalbotGolfTabletopCfg,
+    GalbotGolfWholeBodyContinuousGripperActionCfg,
 )
-from robolab.robots.galbot_golf_definitions import ARM_JOINTS, HEAD_JOINTS, LEFT_EE_BODY, LEG_JOINTS, RIGHT_EE_BODY
+from robolab.robots.galbot_golf_definitions import (
+    ARM_JOINTS,
+    HEAD_JOINTS,
+    LEFT_EE_BODY,
+    LEG_JOINTS,
+    RIGHT_EE_BODY,
+    WHOLE_BODY_JOINTS,
+)
 
 # Tabletop Golf plus a contact sensor on the passive caster wheels — the
 # robot's lowest colliders, rebased onto each scene's authored ground by the
@@ -99,6 +107,52 @@ def test_arm_only_joint_control_holds_uncommanded_joints():
         # contact forces must stay near zero (interpenetration shows up as
         # meganewton-scale depenetration forces against the welded root).
         assert max_wheel_force < 50.0, f"standing wheel contact force {max_wheel_force:.1f} N"
+    finally:
+        env.close()
+
+
+def test_control_profile_tracks_whole_body_targets_and_resets():
+    """Resolve symmetric gains into both arms and exercise all 23 position joints."""
+    postfix = "GalbotGolfControlProfileTest"
+    auto_register_galbot_envs(
+        task="BananaInBowlTask", env_postfix=postfix, include_viewport=False,
+        actions_cfg=GalbotGolfWholeBodyContinuousGripperActionCfg(),
+    )
+    env, _ = create_env(_registered_env(postfix), num_envs=1, use_fabric=True)
+    try:
+        env.reset()
+        robot = env.scene["robot"]
+        assert robot.is_fixed_base
+        ids, _ = robot.find_joints(WHOLE_BODY_JOINTS, preserve_order=True)
+        initial = robot.data.joint_pos[:, ids].clone()
+        target = initial.clone()
+        limits = robot.data.soft_joint_pos_limits[:, ids]
+        # The reset wrist/head poses are close to some upper limits. Exercise
+        # every joint toward its interval midpoint rather than saturating it.
+        direction = torch.where(initial[:, :21] > limits[:, :21].mean(dim=-1), -1.0, 1.0)
+        delta = torch.tensor([0.02] * 5 + [0.01] * 2 + [0.04] * 14, device=env.device)
+        target[:, :21] += direction * delta
+        target[:, 21:] = torch.tensor([0.6, 1.0], device=env.device)
+        assert ((target >= limits[..., 0]) & (target <= limits[..., 1])).all()
+        for _ in range(40):
+            env.step(target)
+        measured = robot.data.joint_pos[:, ids]
+        assert torch.isfinite(robot.data.root_state_w).all()
+        assert ((measured[:, :21] - initial[:, :21]).abs() > 0.005).all()
+        torch.testing.assert_close(measured[:, :21], target[:, :21], atol=0.01, rtol=0)
+        torch.testing.assert_close(measured[:, 21:], target[:, 21:], atol=0.06, rtol=0)
+        for side in ("left", "right"):
+            shoulder, _ = robot.find_joints([f"{side}_arm_joint1", f"{side}_arm_joint2"], preserve_order=True)
+            torch.testing.assert_close(
+                robot.data.joint_stiffness[:, shoulder],
+                torch.tensor([[3542.0, 3438.0]], device=env.device),
+            )
+        print("CONTROL_PROFILE_MAX_ERROR", (measured - target).abs().max().item(), flush=True)
+        env.reset_eval_state()
+        env.reset()
+        for _ in range(10):
+            env.step(initial)
+        torch.testing.assert_close(robot.data.joint_pos[:, ids], initial, atol=0.01, rtol=0)
     finally:
         env.close()
 

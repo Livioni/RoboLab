@@ -132,7 +132,20 @@ def _galbot_golf_robot_cfg(
     init_joint_pos: dict[str, float] | None = None,
     init_pos: tuple[float, float, float] = (0.0, 0.0, 0.0),
 ) -> ArticulationCfg:
-    """Build a Golf articulation config while preserving the received USD physics properties."""
+    """Build a Golf articulation config with Sim2Real gains and controller gravity compensation.
+
+    Stiffness, damping, and effort limits are sourced from the
+    ``galbot-one-golf-sim2real-v1`` system-identification profile
+    (synthnova/src/synthnova/robots/cfg/galbot_one_golf.toml).
+    Left/right arm gains are averaged, then rounded to the nearest integer;
+    other gains are rounded directly (half values round up). Effort and
+    specified velocity limits are retained from the profile. The profile
+    leaves head/gripper velocity limits unspecified, so those remain USD-authored.
+
+    Gravity compensation is realised by disabling per-link gravity in the
+    physics engine (``disable_gravity=True``). This approximates ideal
+    controller-side compensation for this fixed-base embodiment.
+    """
     return ArticulationCfg(
         prim_path="{ENV_REGEX_NS}/robot",
         spawn=sim_utils.UsdFileCfg(
@@ -140,6 +153,10 @@ def _galbot_golf_robot_cfg(
             variants=GALBOT_GOLF_USD_VARIANTS,
             activate_contact_sensors=True,
             rigid_props=sim_utils.RigidBodyPropertiesCfg(
+                # Simulate controller-side gravity compensation: the real robot
+                # compensates gravity in its low-level controller, so the
+                # joint-position PD loops only see tracking error, not gravity load.
+                disable_gravity=True,
                 max_depenetration_velocity=5.0,
             ),
             articulation_props=sim_utils.ArticulationRootPropertiesCfg(
@@ -165,35 +182,92 @@ def _galbot_golf_robot_cfg(
         ),
         soft_joint_pos_limit_factor=1.0,
         actuators={
-            # Preserve all drive properties authored in the supplied PhysX USD.
+            # --- Leg linkage (Sim2Real profile, per-joint) ---
+            # The five leg joints span three torque tiers; damping is rounded
+            # from the system-identification profile.
             "legs": ImplicitActuatorCfg(
                 joint_names_expr=["leg_joint.*"],
-                effort_limit_sim=None,
-                velocity_limit_sim=None,
-                stiffness=None,
-                damping=None,
+                effort_limit_sim={
+                    "leg_joint1": 433,
+                    "leg_joint2": 433,
+                    "leg_joint3": 204,
+                    "leg_joint4": 70,
+                    "leg_joint5": 70,
+                },
+                velocity_limit_sim={
+                    "leg_joint1": 2.094395,
+                    "leg_joint2": 2.094395,
+                    "leg_joint3": 3.141593,
+                    "leg_joint4": 3.141593,
+                    "leg_joint5": 3.141593,
+                },
+                stiffness={
+                    "leg_joint1": 8660,
+                    "leg_joint2": 8660,
+                    "leg_joint3": 4080,
+                    "leg_joint4": 1400,
+                    "leg_joint5": 1400,
+                },
+                damping={
+                    "leg_joint1": 727,
+                    "leg_joint2": 567,
+                    "leg_joint3": 222,
+                    "leg_joint4": 88,
+                    "leg_joint5": 85,
+                },
             ),
+            # --- Head pan / tilt ---
             "head": ImplicitActuatorCfg(
                 joint_names_expr=["head_joint.*"],
-                effort_limit_sim=None,
-                velocity_limit_sim=None,
-                stiffness=None,
-                damping=None,
+                effort_limit_sim=4,
+                stiffness=80,
+                damping=4,
             ),
-            "arms": ImplicitActuatorCfg(
-                joint_names_expr=["left_arm_joint.*", "right_arm_joint.*"],
-                effort_limit_sim=None,
-                velocity_limit_sim=None,
-                stiffness=None,
-                damping=None,
+            # --- Arm shoulder (joints 1–2, ±180 N·m) ---
+            # Left/right values are symmetrised (averaged) and rounded to integers.
+            "arm_shoulder": ImplicitActuatorCfg(
+                joint_names_expr=["left_arm_joint[12]", "right_arm_joint[12]"],
+                effort_limit_sim=180,
+                velocity_limit_sim=3.141593,
+                stiffness={
+                    ".*_arm_joint1": 3542,
+                    ".*_arm_joint2": 3438,
+                },
+                damping={
+                    ".*_arm_joint1": 100,
+                    ".*_arm_joint2": 96,
+                },
             ),
+            # --- Arm elbow (joints 3–4, ±90 N·m) ---
+            "arm_elbow": ImplicitActuatorCfg(
+                joint_names_expr=["left_arm_joint[34]", "right_arm_joint[34]"],
+                effort_limit_sim=90,
+                velocity_limit_sim=3.926991,
+                stiffness={
+                    ".*_arm_joint3": 1145,
+                    ".*_arm_joint4": 1143,
+                },
+                damping=32,
+            ),
+            # --- Arm wrist (joints 5–7, ±30 N·m) ---
+            "arm_wrist": ImplicitActuatorCfg(
+                joint_names_expr=["left_arm_joint[5-7]", "right_arm_joint[5-7]"],
+                effort_limit_sim=30,
+                velocity_limit_sim=3.926991,
+                stiffness={
+                    ".*_arm_joint5": 286,
+                    ".*_arm_joint[67]": 284,
+                },
+                damping=8,
+            ),
+            # --- DESC grippers (±1.5 N·m hardware rating) ---
             "grippers": ImplicitActuatorCfg(
                 joint_names_expr=["left_gripper_joint", "right_gripper_joint"],
-                effort_limit_sim=1.0,
-                velocity_limit_sim=3.5,
-                stiffness=40.0,
-                damping=5.0,
+                effort_limit_sim=1.5,
+                stiffness=77,
+                damping=4,
             ),
+            # --- Holonomic wheels: preserve USD-authored drive properties ---
             "wheels": ImplicitActuatorCfg(
                 joint_names_expr=WHEEL_JOINTS,
                 effort_limit_sim=None,
