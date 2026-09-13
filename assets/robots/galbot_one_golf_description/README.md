@@ -86,8 +86,7 @@ This software is licensed under the Apache License 2.0. See `LICENSE` for detail
 
 ## Fingertip contact regions
 
-Fingertip collisions use upstream revision `46c0b7447edc8254e8b44dd669df86fb6985d876`.
-Each finger has two 1 mm inner pads with static/dynamic friction `1.5/1.5` and
-three outer shell pieces with `0.3/0.2`, all with zero restitution. The pad and
-shell collision union preserves the original contact envelope and gripper opening.
-The updated meshes are packed into the existing `usd/payloads/geometries.usd`.
+Fingertip collisions use upstream revision `46c0b7447edc8254e8b44dd669df86fb6985d876`,
+packed into the existing `usd/payloads/geometries.usd`. The 1 mm inner pads use
+static/dynamic friction `1.5/1.5`; outer shells use `0.3/0.2`, with zero restitution.
+The collision envelope and gripper opening are preserved.
