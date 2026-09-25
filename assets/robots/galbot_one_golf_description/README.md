@@ -68,9 +68,12 @@ half values rounded up (e.g. gripper stiffness 76.5 becomes 77).
 
 Stiffness is in N m/rad and damping in N m s/rad. Effort limits are 433/433/204/70/70
 N m for the legs, 4 N m for the head, 180/180/90/90/30/30/30 N m per arm, and
-1.5 N m per gripper. Specified profile velocity limits are retained; head and
-gripper limits are unspecified in the source and remain USD-authored. Wheels
-retain their USD drive properties.
+1.5 N m per gripper. Specified profile velocity limits are retained. The source
+does not specify head or gripper speed: the head retains its USD limit, and the
+grippers retain RoboLab's existing 3.5 rad/s limit rather than falling back to
+the USD's 0.5 rad/s. This preserves the existing closing-time limit; 3.5 rad/s
+is not a speed calibration from the source profile. Wheels retain their USD
+drive properties.
 
 The robot root stays fixed. Robot-link gravity is disabled to approximate ideal
 controller-side gravity compensation; gravity on task objects is unchanged.

@@ -140,7 +140,8 @@ def _galbot_golf_robot_cfg(
     Left/right arm gains are averaged, then rounded to the nearest integer;
     other gains are rounded directly (half values round up). Effort and
     specified velocity limits are retained from the profile. The profile
-    leaves head/gripper velocity limits unspecified, so those remain USD-authored.
+    leaves head/gripper velocity limits unspecified: retain the USD head limit
+    and RoboLab's existing 3.5 rad/s gripper limit.
 
     Gravity compensation is realised by disabling per-link gravity in the
     physics engine (``disable_gravity=True``). This approximates ideal
@@ -264,6 +265,7 @@ def _galbot_golf_robot_cfg(
             "grippers": ImplicitActuatorCfg(
                 joint_names_expr=["left_gripper_joint", "right_gripper_joint"],
                 effort_limit_sim=1.5,
+                velocity_limit_sim=3.5,
                 stiffness=77,
                 damping=4,
             ),

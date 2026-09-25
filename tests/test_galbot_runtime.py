@@ -157,6 +157,32 @@ def test_control_profile_tracks_whole_body_targets_and_resets():
         env.close()
 
 
+def test_grippers_close_and_reopen_within_one_second():
+    """Preserve the existing response time when adopting the control profile."""
+    postfix = "GalbotGolfGripperTimingTest"
+    auto_register_galbot_envs(
+        task="BananaInBowlTask", env_postfix=postfix, include_viewport=False,
+        actions_cfg=GalbotGolfWholeBodyContinuousGripperActionCfg(),
+    )
+    env, _ = create_env(_registered_env(postfix), num_envs=1, use_fabric=True)
+    try:
+        env.reset()
+        robot = env.scene["robot"]
+        ids, _ = robot.find_joints(WHOLE_BODY_JOINTS, preserve_order=True)
+        target = robot.data.default_joint_pos[:, ids].clone()
+        steps = round(1.0 / env.step_dt)
+        # Open first so the closing check starts from a known, settled pose.
+        for position in (0.0, 1.5, 0.0):
+            target[:, -2:] = position
+            for _ in range(steps):
+                env.step(target)
+            torch.testing.assert_close(
+                robot.data.joint_pos[:, ids[-2:]], target[:, -2:], atol=0.06, rtol=0,
+            )
+    finally:
+        env.close()
+
+
 def test_root_follows_legacy_scene_ground_without_wheel_contact():
     """In a legacy -0.65 scene the root rides the ground up 47 mm, wheels resting force-free.
 
