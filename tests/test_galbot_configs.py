@@ -74,11 +74,11 @@ def test_left_ego_camera_uses_policy_calibration():
 def test_wrist_cameras_use_golf_sensor_calibration():
     left = GalbotGolfLeftWristCameraCfg().left_wrist_cam
     right = GalbotGolfRightWristCameraCfg().right_wrist_cam
-    assert (left.width, left.height) == (400, 224)
-    assert (right.width, right.height) == (400, 224)
+    assert (left.width, left.height) == (640, 360)
+    assert (right.width, right.height) == (640, 360)
     for camera in (left, right):
-        assert camera.width * camera.spawn.focal_length / camera.spawn.horizontal_aperture == pytest.approx(202)
-        assert camera.height * camera.spawn.focal_length / camera.spawn.vertical_aperture == pytest.approx(202)
+        assert camera.width * camera.spawn.focal_length / camera.spawn.horizontal_aperture == pytest.approx(323.2)
+        assert camera.height * camera.spawn.focal_length / camera.spawn.vertical_aperture == pytest.approx(324.642857)
         assert camera.spawn.clipping_range == pytest.approx((0.03, 10.0))
 
 

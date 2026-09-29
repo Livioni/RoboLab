@@ -71,27 +71,25 @@ def _source_replay_camera(
 
 
 def _wrist_camera(side: str) -> TiledCameraCfg:
-    """Camera parented to Golf's URDF camera frame, using its +Z optical axis."""
+    """Yundonghui policy calibration resized from 400x224 to 640x360."""
     return TiledCameraCfg(
-        prim_path=(
-            f"{{ENV_REGEX_NS}}/robot/{side}_arm_link7/"
-            f"{side}_arm_wrist_camera_stand/{side}_wrist_camera_link/{side}_wrist_cam"
-        ),
-        height=224,
-        width=400,
+        prim_path=f"{{ENV_REGEX_NS}}/robot/{side}_arm_link7/{side}_wrist_cam",
+        height=360,
+        width=640,
         data_types=["rgb"],
         spawn=sim_utils.PinholeCameraCfg(
-            focal_length=202 * 0.03,
+            # Scaled intrinsics: fx=323.2, fy=324.642857, cx=320, cy=180.
+            focal_length=6.06,
             focus_distance=0.0,
-            horizontal_aperture=400 * 0.03,
-            vertical_aperture=224 * 0.03,
+            horizontal_aperture=12.0,
+            vertical_aperture=6.72,
             clipping_range=(0.03, 10.0),
         ),
-        # The URDF camera link supplies the optical +Z direction, but its image
-        # axes are rolled 90 degrees relative to the upright D405 recording.
+        # Mount-relative calibration expressed in arm_link7, quaternion WXYZ.
+        # Both wrists have the same rotation (the source quaternions differ only in sign).
         offset=TiledCameraCfg.OffsetCfg(
-            pos=(0.0, 0.0, 0.0),
-            rot=(0.7071067812, 0.0, 0.0, 0.7071067812),
+            pos=(-0.18015459385344976, 0.011084636915734618, -0.0475356786953811),
+            rot=(-0.5860286987303605, -0.38397145780165504, 0.3981361647004496, 0.5921350168801781),
             convention="ros",
         ),
     )
