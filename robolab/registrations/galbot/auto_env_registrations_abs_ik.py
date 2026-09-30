@@ -92,6 +92,7 @@ def auto_register_galbot_abs_ik_envs(
         dt=dt,
         render_interval=render_interval,
         decimation=decimation,
+        solver_iterations=(128, 4),
         seed=1,
     )
 
