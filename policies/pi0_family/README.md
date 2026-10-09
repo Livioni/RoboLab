@@ -63,6 +63,13 @@ uv run python policies/pi0_family/run.py --policy pi05 --remote-host <HOST> --re
 
 A full WebSocket URI (e.g. a hosted endpoint) can be passed with `--remote-uri`, which overrides `--remote-host` / `--remote-port`.
 
+## Data collection
+
+For synchronized third-person RGB-D, calibration, measured robot state and executed
+actions at 15 Hz, see [DROID-like data collection](../../docs/droid_collection.md).
+The dedicated `collect.py` runner defaults to 320×180 and supports either a local
+OpenPI server or a remote LAN host.
+
 ## Variation scripts
 
 The pi0_family folder also ships controlled-variation runners that wrap the same client to sweep a single axis per registered env:

@@ -44,3 +44,4 @@ pyrightconfig.json
 .claude/scheduled_tasks.lock
 .claude/agents
 .claude/commands
+/datasets
